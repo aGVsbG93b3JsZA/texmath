@@ -456,15 +456,21 @@ elemToExps' element | isElem "m" "r" element = do
       nor = mrPr >>= filterChildName (hasElemName "m" "nor")
       txtSty = oMathRunTextStyleToTextType $ elemToOMathRunTextStyle element'
   mrElems <- elemToOMathRunElems element'
-  return $
-    if null lit && null nor
-       then case txtSty of
-              Nothing ->
-                interpretText $ oMathRunElemsToText mrElems
-              Just textSty ->
-                [EStyled textSty $ interpretText $ oMathRunElemsToText mrElems]
-       else [EText (fromMaybe TextNormal txtSty) $ oMathRunElemsToText mrElems]
+  if not (any isTextRun mrElems)
+     then Nothing
+     else return $
+      if null lit && null nor
+        then case txtSty of
+                Nothing ->
+                  interpretText $ oMathRunElemsToText mrElems
+                Just textSty ->
+                  [EStyled textSty $ interpretText $ oMathRunElemsToText mrElems]
+        else [EText (fromMaybe TextNormal txtSty) $ oMathRunElemsToText mrElems]
 elemToExps' _ = Nothing
+
+isTextRun :: OMathRunElem -> Bool
+isTextRun (TextRun _) = True
+isTextRun _ = False
 
 interpretChar :: Char -> Exp
 interpretChar c | isDigit c = ENumber $ T.singleton c
