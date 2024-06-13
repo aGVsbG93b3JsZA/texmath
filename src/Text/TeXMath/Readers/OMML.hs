@@ -43,6 +43,7 @@ import Text.TeXMath.Shared (fixTree, getSpaceWidth, getOperator)
 import Text.TeXMath.Unicode.ToTeX (getSymbolType)
 import Text.TeXMath.Unicode.Fonts (getUnicode, textToFont)
 import Data.List.Split (splitWhen)
+import Control.Applicative ((<|>))
 
 readOMML :: T.Text -> Either T.Text [Exp]
 readOMML s | Just e <- parseXMLDoc s =
@@ -180,7 +181,9 @@ elemToOMathRunElem element
 elemToOMathRunElems :: Element -> Maybe [OMathRunElem]
 elemToOMathRunElems element
   | isElem "w" "r" element
-    || isElem "m" "r" element =
+    || isElem "m" "r" element 
+    || isElem "w" "ins" element
+    || isElem "w" "del" element =
       Just $ mapMaybe (elemToOMathRunElem) (elChildren element)
 elemToOMathRunElems _ = Nothing
 
@@ -444,11 +447,15 @@ elemToExps' element | isElem "m" "sSup" element = do
             (\e -> return $ concat $ mapMaybe (elemToExps) (elChildren e))
   return [ESuper baseExp (EGrouped supExps)]
 elemToExps' element | isElem "m" "r" element = do
-  let mrPr = filterChildName (hasElemName "m" "rPr") element
+  let element' = case filterChildName (hasElemName "w" "ins") element <|> 
+                      filterChildName (hasElemName "w" "del") element of
+                  Just e -> e
+                  Nothing -> element
+  let mrPr = filterChildName (hasElemName "m" "rPr") element'
       lit = mrPr >>= filterChildName (hasElemName "m" "lit")
       nor = mrPr >>= filterChildName (hasElemName "m" "nor")
-      txtSty = oMathRunTextStyleToTextType $ elemToOMathRunTextStyle element
-  mrElems <- elemToOMathRunElems element
+      txtSty = oMathRunTextStyleToTextType $ elemToOMathRunTextStyle element'
+  mrElems <- elemToOMathRunElems element'
   return $
     if null lit && null nor
        then case txtSty of
